@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thiệp rơi - Chúc Hà Chi</title>
+  <style>
+    :root{
+      --bg1: #ffd6e7;
+      --bg2: #ffb6c1;
+      --card-w: 160px;
+      --card-h: 110px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(180deg,var(--bg1),var(--bg2));
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#333;
+    }
+
+    .stage{
+      position:relative;
+      width:100%;
+      height:100vh;
+      overflow:hidden;
+    }
+
+    h1.main-title{
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      text-shadow: 0 3px 10px rgba(0,0,0,0.2);
+      font-size: 22px;
+      z-index:5;
+    }
+
+    /* Cards (thiệp) style */
+    .card{
+      position:absolute;
+      width:var(--card-w);
+      height:var(--card-h);
+      background: linear-gradient(180deg,#fff,#ffeef6);
+      border-radius:12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:12px;
+      cursor:pointer;
+      transform-origin:center;
+      transition:transform .15s ease;
+      z-index:2;
+      user-select:none;
+    }
+    .card:hover{ transform: translateY(-6px) scale(1.02); }
+
+    .card .label{
+      font-weight:700;
+      color:#d6336c;
+    }
+    .envelope{
+      width:100%;
+      height:100%;
+      position:relative;
+      border-radius:12px;
+      overflow:hidden;
+    }
+
+    /* Fall animation */
+    @keyframes fall{
+      0%{ transform: translateY(-160vh) rotate(0deg); opacity:0; }
+      10%{ opacity:1; }
+      100%{ transform: translateY(120vh) rotate(360deg); opacity:1; }
+    }
+
+    /* Modal */
+    .modal{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,0.45);
+      z-index:999;
+      visibility:hidden;
+      opacity:0;
+      transition:opacity .2s ease, visibility .2s;
+    }
+    .modal.show{ visibility:visible; opacity:1; }
+    .popup{
+      width: min(86%,460px);
+      background: linear-gradient(180deg,#fff,#fff7fb);
+      border-radius:14px;
+      padding:20px;
+      box-shadow:0 20px 50px rgba(0,0,0,0.25);
+      text-align:center;
+    }
+    .popup h2{ margin:0 0 8px; color:#d6336c; }
+    .popup p{ margin:0 0 14px; color:#444; line-height:1.4; }
+    .btns{ display:flex; gap:8px; justify-content:center; }
+    button{ padding:8px 14px; border-radius:8px; border:0; cursor:pointer; font-weight:600; }
+    .close{ background:#f0f0f0; color:#333; }
+    .copy{ background: #ff6b9a; color:white; }
+
+    /* small footer line */
+    .footer{
+      position:absolute;
+      bottom:14px;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:13px;
+      color:#fff;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index:5;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <h1 class="main-title">Chúc Hà Chi ngày 20/10 thật vui, xinh đẹp và hạnh phúc! — From Dương Bùi 💗</h1>
+
+    <!-- cards will be injected by JS -->
+    <div id="cardsContainer"></div>
+
+    <div class="footer">Nhấn vào mỗi thiệp để mở lời chúc 💌</div>
+  </div>
+
+  <div class="modal" id="modal" role="dialog" aria-hidden="true">
+    <div class="popup" id="popup">
+      <h2 id="popupTitle">Lời chúc</h2>
+      <p id="popupText">...</p>
+      <div class="btns">
+        <button class="close" id="closeBtn">Đóng</button>
+        <button class="copy" id="copyBtn">Sao chép</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const messages = [
+      "Chúc Hà Chi luôn xinh đẹp, rạng rỡ và ngập tràn tiếng cười!",
+      "Chúc Hà Chi có một ngày 20/10 thật ý nghĩa, nhiều quà và nụ cười!",
+      "Mong mọi điều tốt lành đến với Hà Chi — hạnh phúc và thành công nhé!",
+      "Gửi tới Hà Chi nhiều yêu thương và những khoảnh khắc ngọt ngào hôm nay!",
+      "Luôn tỏa sáng, luôn mạnh mẽ — Chúc Hà Chi thật hạnh phúc!"
+    ];
+
+    const container = document.getElementById('cardsContainer');
+    const stage = document.getElementById('stage');
+    const modal = document.getElementById('modal');
+    const popupText = document.getElementById('popupText');
+    const popupTitle = document.getElementById('popupTitle');
+    const closeBtn = document.getElementById('closeBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // create 5 cards that fall like rain
+    const CARD_COUNT = 5;
+
+    function rand(min, max){ return Math.random() * (max - min) + min; }
+
+    for(let i=0;i<CARD_COUNT;i++){
+      const card = document.createElement('div');
+      card.className = 'card';
+      // position off top initially and animate falling
+      const leftPercent = rand(5, 90);
+      card.style.left = leftPercent + 'vw';
+      // staggered animation duration/ delay for natural falling
+      const duration = rand(6, 12);
+      const delay = rand(0, 4);
+      card.style.animation = `fall ${duration}s linear ${delay}s infinite`;
+      // slight rotation each one
+      card.style.transform = `translateY(-160vh) rotate(${rand(-30,30)}deg)`;
+
+      // content inside card (like a small envelope)
+      const inner = document.createElement('div');
+      inner.className = 'envelope';
+      inner.innerHTML = `<div class="label">Thiệp</div>`;
+      card.appendChild(inner);
+
+      // assign message on click
+      const message = messages[i % messages.length];
+      card.addEventListener('click', (e) => {
+        popupTitle.textContent = "Gửi đến Hà Chi 💌";
+        popupText.textContent = message;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden','false');
+      });
+
+      container.appendChild(card);
+    }
+
+    // modal controls
+    closeBtn.addEventListener('click', ()=> {
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+    });
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden','true');
+      }
+    });
+
+    copyBtn.addEventListener('click', ()=> {
+      const text = popupText.textContent;
+      navigator.clipboard.writeText(text).then(()=>{
+        copyBtn.textContent = "Đã sao chép";
+        setTimeout(()=> copyBtn.textContent = "Sao chép", 1500);
+      });
+    });
+
+    // make cards clickable also accessible by keyboard (Enter)
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'Escape') {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden','true');
+      }
+    });
+
+    // Responsive tweak: if window is narrow, reduce card size slightly
+    window.addEventListener('resize', ()=>{
+      const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      if(vw < 420){
+        document.documentElement.style.setProperty('--card-w','130px');
+        document.documentElement.style.setProperty('--card-h','90px');
+      } else {
+        document.documentElement.style.setProperty('--card-w','160px');
+        document.documentElement.style.setProperty('--card-h','110px');
+      }
+    });
+  </script>
+</body>
+</html>
